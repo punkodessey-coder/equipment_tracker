@@ -1,0 +1,8 @@
+Flask>=2.0.0
+Flask-SQLAlchemy>=3.0.0
+Flask-Login>=0.6.0
+Werkzeug>=2.0.0
+python-docx>=0.8.11
+reportlab>=4.0
+segno>=1.5
+openpyxl>=3.0

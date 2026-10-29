@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block title %}Журнал операций — Трекер{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold m-0">Журнал операций</h3>
+        <p class="text-secondary small m-0">Выдачи и приемки оборудования</p>
+    </div>
+    <a href="{{ url_for('operations.new_operation') }}" class="btn-primary-custom text-decoration-none">+ Создать операцию</a>
+</div>
+
+<div class="card-custom p-0 overflow-hidden">
+    <table class="table-custom">
+        <thead>
+            <tr>
+                <th>№</th>
+                <th>Тип</th>
+                <th>Получил / Сдал (Сотрудник)</th>
+                <th>Выдал / Принял (Ответственный)</th>
+                <th>Позиций</th>
+                <th>Дата</th>
+                <th class="text-end">Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for op in operations %}
+            <tr>
+                <td><strong>{{ loop.index }}</strong></td>
+                <td>
+                    {% if op.op_type == 'issue' %}
+                    <span class="badge-custom badge-issued">Выдача</span>
+                    {% else %}
+                    <span class="badge-custom badge-stock">Приемка</span>
+                    {% endif %}
+                </td>
+                <td>{{ op.employee.full_name if op.employee else '—' }}</td>
+                <td>{{ op.issuer.full_name if op.issuer else '—' }}</td>
+                <td>{{ op.items|length }} ед.</td>
+                <td class="text-secondary small">{{ op.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td class="text-end">
+                    <a href="{{ url_for('operations.detail', op_id=op.id) }}" class="btn btn-sm btn-secondary-custom text-decoration-none">Детали</a>
+                    <a href="{{ url_for('operations.generate_docx', op_id=op.id) }}" class="btn btn-sm btn-outline-primary text-decoration-none">DOCX Акт</a>
+                    <a href="{{ url_for('operations.edit_operation', op_id=op.id) }}" class="btn btn-sm btn-secondary-custom text-decoration-none">Изменить</a>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" class="text-center py-4 text-secondary">Операций пока не проводилось</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

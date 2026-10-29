@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block title %}Вход — Трекер{% endblock %}
+
+{% block content %}
+<div class="login-theme-bar"><button type="button" id="themeToggle" class="theme-toggle" aria-label="Темная тема" title="Темная тема"></button></div>
+<div class="qr-widget login-qr" id="qrWidget">
+  <button type="button" class="qr-toggle" title="Подключиться с телефона" aria-label="QR для подключения"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM19 14h2v2h-2zM14 19h2v2h-2zM19 19h2v2h-2z"/></svg></button>
+  <div class="qr-panel"><div class="qr-title">Подключение с телефона</div><img src="{{ url_for('main.qr_svg') }}" alt="QR-код подключения"><div class="qr-url">{{ connect_url }}</div></div>
+</div>
+<div class="row justify-content-center align-items-center" style="min-height: 80vh;">
+    <div class="col-md-4">
+        <div class="card-custom text-center p-4">
+            <div class="navbar-brand-custom justify-content-center mb-3" style="font-size:1.35rem;">
+              <svg class="brand-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg><span>Трекер</span>
+            </div>
+            <h4 class="fw-bold mb-1">Авторизация</h4>
+            <p class="text-secondary small mb-4">Введите учетные данные для доступа</p>
+            <form method="POST" class="text-start">
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold text-secondary">Логин</label>
+                    <input type="text" name="username" class="form-control-custom" placeholder="admin" required autofocus>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label small fw-semibold text-secondary">Пароль</label>
+                    <input type="password" name="password" class="form-control-custom" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn-primary-custom w-100 py-2 justify-content-center">Войти в систему</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

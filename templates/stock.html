@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block title %}Наличие — Трекер{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h3 class="fw-bold m-0">Наличие</h3>
+    <p class="text-secondary small m-0">Оборудование, готовое к выдаче</p>
+</div>
+
+<div class="card-custom p-0 overflow-hidden">
+    <table class="table-custom">
+        <thead>
+            <tr>
+                <th>№</th>
+                <th>Наименование</th>
+                <th>S/N</th>
+                <th>Категория</th>
+                <th>Проект</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td><strong>{{ loop.index }}</strong></td>
+                <td><strong>{{ item.name }}</strong></td>
+                <td><code>{{ item.serial_number or 'б/н' }}</code></td>
+                <td class="text-secondary">{{ item.category or '—' }}</td>
+                <td>{{ item.project.name if item.project else '—' }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="text-center py-4 text-secondary">На складе пусто</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

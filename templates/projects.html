@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block title %}Проекты — Трекер{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4"><h3 class="fw-bold m-0">Проекты</h3><button class="btn-primary-custom" data-bs-toggle="modal" data-bs-target="#addProjectModal">Добавить проект</button></div>
+<div class="card-custom p-0 overflow-hidden mb-4"><table class="table-custom"><thead><tr><th>Название проекта</th><th>Комплекты</th><th>Количество оборудования</th><th class="text-end">Действие</th></tr></thead><tbody>
+{% for p in projects %}<tr><td><a class="fw-bold text-decoration-none" href="{{ url_for('directory.project_detail',proj_id=p.id) }}">{{ p.name }}</a></td>
+<td>{% for k in p.kits %}<a href="{{ url_for('directory.kit_detail',proj_id=p.id,kit_id=k.id) }}" class="badge-custom badge-user text-decoration-none me-1">{{ k.name }}</a>{% else %}—{% endfor %}</td><td>{{ kit_counts[p.id] }}</td>
+<td class="text-end"><form method="POST" action="{{ url_for('directory.archive_project',proj_id=p.id) }}" class="d-inline"><button class="btn btn-sm btn-secondary-custom">В архив</button></form></td></tr>
+{% else %}<tr><td colspan="4" class="text-center py-4 text-secondary">Проекты не созданы</td></tr>{% endfor %}</tbody></table></div>
+{% if archived_projects %}<h5 class="fw-bold mb-3">Архив проектов</h5><div class="card-custom p-0 overflow-hidden"><table class="table-custom"><thead><tr><th>Название проекта</th><th>Комплекты</th><th class="text-end">Действия</th></tr></thead><tbody>
+{% for p in archived_projects %}<tr><td><a class="fw-bold text-decoration-none" href="{{ url_for('directory.project_detail',proj_id=p.id) }}">{{ p.name }}</a></td><td>{% for k in p.kits %}<a href="{{ url_for('directory.kit_detail',proj_id=p.id,kit_id=k.id) }}">{{ k.name }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</td><td class="text-end"><form method="POST" action="{{ url_for('directory.restore_project',proj_id=p.id) }}" class="d-inline"><button class="btn btn-sm btn-secondary-custom">Вернуть из архива</button></form><a href="{{ url_for('directory.project_pdf',proj_id=p.id) }}" class="btn btn-sm btn-secondary-custom text-decoration-none ms-1">PDF</a></td></tr>{% endfor %}
+</tbody></table></div>{% endif %}
+<div class="modal fade" id="addProjectModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content card-custom"><div class="modal-header"><h5 class="modal-title fw-bold">Добавить проект</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><form method="POST"><div class="modal-body"><label class="form-label small fw-semibold text-secondary">Название проекта</label><input name="name" class="form-control-custom mb-3" required><label class="form-label small fw-semibold text-secondary">Комплекты</label><div id="kitsBox"><div class="kit-row"><input name="kit_names" class="form-control-custom" placeholder="Название комплекта"><button type="button" class="btn btn-sm btn-secondary-custom remove-kit" title="Удалить строку">✕</button></div></div><button type="button" class="btn btn-sm btn-secondary-custom" id="addKit">+ Добавить комплект</button></div><div class="modal-footer"><button type="submit" class="btn-primary-custom">Создать</button></div></form></div></div></div>
+{% endblock %}
+{% block scripts %}<script>
+(function(){
+ const box=document.getElementById('kitsBox'), add=document.getElementById('addKit'), form=box.closest('form');
+ function validate(){
+   const inputs=[...box.querySelectorAll('input[name="kit_names"]')], seen=new Map(), dups=new Set();
+   inputs.forEach(i=>{i.classList.remove('is-invalid'); i.removeAttribute('title'); const key=i.value.trim().toLocaleLowerCase('ru-RU'); if(key){if(seen.has(key)){dups.add(key); i.classList.add('is-invalid'); i.title='Такое название комплекта уже введено'; seen.get(key).classList.add('is-invalid'); seen.get(key).title='Такое название комплекта уже введено';} else seen.set(key,i);}});
+   return dups.size===0;
+ }
+ function addRow(){const row=document.createElement('div');row.className='kit-row';row.innerHTML='<input name="kit_names" class="form-control-custom" placeholder="Название комплекта"><button type="button" class="btn btn-sm btn-secondary-custom remove-kit" title="Удалить строку">✕</button>';const inp=row.querySelector('input');inp.addEventListener('input',validate);row.querySelector('.remove-kit').addEventListener('click',()=>{row.remove();validate();});box.appendChild(row);inp.focus();}
+ add.addEventListener('click',addRow);
+ box.querySelectorAll('input').forEach(i=>i.addEventListener('input',validate));
+ box.querySelectorAll('.remove-kit').forEach(b=>b.addEventListener('click',()=>{b.closest('.kit-row').remove();validate();}));
+ form.addEventListener('submit',e=>{if(!validate()){e.preventDefault(); alert('Нельзя создать два комплекта с одинаковым названием. Исправьте названия комплектов.');}});
+})();</script>{% endblock %}

@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block title %}Детали операции — Трекер{% endblock %}
+{% block content %}
+<div class="mb-4 d-flex justify-content-between align-items-center">
+    <div>
+        <a href="{{ url_for('main.index') }}" class="small text-secondary text-decoration-none">← Главная</a>
+        <h3 class="fw-bold mt-2 mb-1">Операция №{{ op.seq_number or op.id }}</h3>
+        <p class="text-secondary small">Дата: {{ op.created_at.strftime('%d.%m.%Y %H:%M') }}</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('operations.generate_docx', op_id=op.id) }}" class="btn-primary-custom text-decoration-none">Сформировать DOCX Акт</a>
+        <a href="{{ url_for('operations.edit_operation', op_id=op.id) }}" class="btn btn-secondary-custom text-decoration-none">Редактировать</a>
+    </div>
+</div>
+<div class="card-custom mb-4">
+    <div class="row g-3">
+        <div class="col-md-4"><span class="text-secondary small d-block">Тип операции</span><strong>{% if op.op_type == 'issue' %}Выдача сотруднику{% else %}Приемка на склад{% endif %}</strong></div>
+        <div class="col-md-4"><span class="text-secondary small d-block">{{ 'Кто выдал' if op.op_type == 'issue' else 'Кто принял' }}</span><strong>{{ op.issuer.full_name if op.issuer else '—' }}</strong></div>
+        <div class="col-md-4"><span class="text-secondary small d-block">{{ 'Кому выдано' if op.op_type == 'issue' else 'От кого принято' }}</span><strong>{{ op.party_full or '—' }}</strong></div>
+    </div>
+    {% if op.comment %}<div class="mt-3 pt-3 border-top"><span class="text-secondary small d-block">Комментарий</span><span>{{ op.comment }}</span></div>{% endif %}
+</div>
+<div class="card-custom p-0 overflow-hidden mb-4">
+    <div class="p-3 px-4 border-bottom"><h6 class="fw-bold m-0">Переданное оборудование</h6></div>
+    <div class="table-scroll"><table class="table-fixed table-custom"><thead><tr><th style="width:48px">№</th><th>Наименование</th><th style="width:16%">Децимальный номер</th><th style="width:16%">S/N</th><th class="col-actions text-end" style="width:120px">История</th></tr></thead>
+    <tbody>{% for item in op.items %}<tr><td><strong>{{ loop.index }}</strong></td><td><strong>{{ item.equipment.name }}</strong></td><td><code>{{ item.equipment.decimal_number or '—' }}</code></td><td><code>{{ item.equipment.serial_number or 'б/н' }}</code></td><td class="col-actions text-end"><a href="{{ url_for('equipment.detail', item_id=item.equipment.id) }}" class="btn btn-sm btn-secondary-custom text-decoration-none">История единицы</a></td></tr>{% endfor %}</tbody></table></div>
+</div>
+{% endblock %}

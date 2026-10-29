@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Редактирование' if item else 'Новое оборудование' }} — Трекер{% endblock %}
+{% block content %}
+<div class="row justify-content-center"><div class="col-lg-8"><div class="card-custom">
+<h4 class="fw-bold mb-4">{{ 'Редактирование оборудования' if item else 'Новое оборудование' }}</h4>
+<form method="POST" enctype="multipart/form-data">
+<div class="mb-3"><label class="form-label small fw-semibold text-secondary">Наименование *</label><input name="name" class="form-control-custom" value="{{ item.name if item else '' }}" required></div>
+<div class="row g-3"><div class="col-md-6"><label class="form-label small fw-semibold text-secondary">Децимальный номер</label><input name="decimal_number" id="decimalInput" class="form-control-custom" value="{{ item.decimal_number if item else '' }}" placeholder="Свой номер или выберите формат"><div class="d-flex gap-2 mt-1"><button type="button" class="btn btn-sm btn-secondary-custom dec-preset" data-prefix="1111.">1111.</button><button type="button" class="btn btn-sm btn-secondary-custom dec-preset" data-prefix="2222.">2222.</button></div></div><div class="col-md-6"><label class="form-label small fw-semibold text-secondary">Серийный номер</label><input name="serial_number" class="form-control-custom" value="{{ item.serial_number if item else '' }}"></div></div>
+<div class="row g-3 mt-1"><div class="col-md-6"><label class="form-label small fw-semibold text-secondary">Проект</label><select name="project_id" id="projectSelect" class="form-select-custom"><option value="">Выберите проект</option>{% for p in projects %}<option value="{{ p.id }}" {{ 'selected' if item and item.project_id==p.id }}>{{ p.name }}{% if p.archived %} (архив){% endif %}</option>{% endfor %}</select></div>
+<div class="col-md-6"><label class="form-label small fw-semibold text-secondary">Комплект</label><select name="kit_id" id="kitSelect" class="form-select-custom"><option value="">Без комплекта</option>{% for k in kits %}<option value="{{ k.id }}" data-project="{{ k.project_id }}" {{ 'selected' if item and item.kit_id==k.id }}>{{ k.name }}</option>{% endfor %}</select></div></div>
+<div class="mb-3 mt-3"><label class="form-label small fw-semibold text-secondary">Описание</label><textarea name="received_from" class="form-control-custom small-description" rows="2" placeholder="Принято от">{{ item.received_from if item else '' }}</textarea></div>
+{% if not item %}<div class="row g-3"><div class="col-md-6"><label class="form-label small fw-semibold text-secondary">Отчет о приеме (DOCX или PDF)</label><input type="file" name="acceptance_report" class="form-control-custom" accept=".docx,.pdf"></div>
+<div class="col-md-6"><label class="form-label small fw-semibold text-secondary">Фото</label><input type="file" name="photos" class="form-control-custom" accept="image/*" multiple><div class="small text-secondary mt-1">До 20 фото.</div></div></div>
+<div class="mt-3 p-3 rounded-3 bg-light"><span class="small text-secondary">Первичная дата и время приема будут сохранены автоматически.</span></div>
+{% else %}<div class="mb-3"><label class="form-label small fw-semibold text-secondary">Добавить фото</label><input type="file" name="photos" class="form-control-custom" accept="image/*" multiple><div class="small text-secondary mt-1">Существующие фото сохраняются, новые добавятся к ним. До 20 фото суммарно.</div></div>{% endif %}
+<div class="d-flex gap-2 mt-4"><button class="btn-primary-custom flex-fill justify-content-center">Сохранить</button><a href="{{ url_for('equipment.detail',item_id=item.id) if item else url_for('equipment.list_equipment') }}" class="btn btn-secondary-custom text-decoration-none">Отмена</a></div>
+</form></div></div></div>
+{% endblock %}
+{% block scripts %}<script>
+const ps=document.getElementById('projectSelect'),ks=document.getElementById('kitSelect'); function kits(){[...ks.options].forEach(o=>{if(o.value)o.hidden=!!ps.value&&o.dataset.project!==ps.value;});if(ks.selectedOptions[0]?.hidden)ks.value='';}ps.addEventListener('change',kits);kits();
+const decInput=document.getElementById('decimalInput');document.querySelectorAll('.dec-preset').forEach(b=>b.addEventListener('click',()=>{const p=b.dataset.prefix;decInput.value=decInput.value.startsWith(p)?decInput.value:p;decInput.focus();decInput.setSelectionRange(decInput.value.length,decInput.value.length);}));
+</script>{% endblock %}

@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+{% block title %}Комплект — Трекер{% endblock %}
+{% block content %}
+<a href="{{ url_for('directory.project_detail',proj_id=project.id) }}" class="small text-secondary text-decoration-none">← {{ project.name }}</a>
+<h3 class="fw-bold mt-2 mb-4">Комплект: {{ kit.name }}</h3>
+<div class="card-custom p-0 overflow-hidden"><div class="table-scroll"><table class="table-custom" id="kitEqTable"><thead><tr><th style="width:48px">№</th><th data-sort="1">Оборудование</th><th>Децимальный номер</th><th>Серийный номер</th><th>Статус</th></tr></thead><tbody>
+{% for eq in kit.equipments %}<tr><td class="row-num">{{ loop.index }}</td><td><a href="{{ url_for('equipment.detail',item_id=eq.id) }}">{{ eq.name }}</a></td><td>{{ eq.decimal_number or '—' }}</td><td>{{ eq.serial_number or '—' }}</td><td>{{ eq.status }}</td></tr>{% else %}<tr><td colspan="5" class="text-center py-4 text-secondary">Оборудование комплекта отсутствует</td></tr>{% endfor %}
+</tbody></table></div></div>
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% import '_icons.html' as icons %}
+{% block title %}Главная — Трекер{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+<div><h3 class="fw-bold m-0">Главная</h3><p class="text-secondary small m-0">Быстрые действия и журнал перемещений</p></div>
+<div class="d-flex gap-2">
+<a href="{{ url_for('operations.new_operation', type='issue') }}" class="btn-primary-custom text-decoration-none">Выдача</a>
+<a href="{{ url_for('operations.new_operation', type='receive') }}" class="btn-receive-custom text-decoration-none">Прием</a>
+</div></div>
+<div class="card-custom p-0 overflow-hidden">
+<div class="p-3 px-4 border-bottom d-flex justify-content-between align-items-center"><h6 class="fw-bold m-0">Последние операции</h6></div>
+<form method="get" id="opFilterForm" class="p-3 border-bottom row g-2 align-items-end filter-bar">
+<div class="col-md-3"><input type="text" name="q" value="{{ f_q }}" class="form-control-custom" placeholder="Поиск по истории перемещений..."></div>
+<div class="col-md-2"><select name="type" class="form-select-custom"><option value="">Все типы</option><option value="issue" {{ 'selected' if f_type=='issue' }}>Выдача</option><option value="receive" {{ 'selected' if f_type=='receive' }}>Прием</option></select></div>
+<div class="col-md-3"><select name="project" class="form-select-custom"><option value="">Все проекты</option>{% for p in projects %}<option value="{{ p.id }}" {{ 'selected' if f_proj==p.id }}>{{ p.name }}</option>{% endfor %}</select></div>
+<div class="col-md-2"><input type="date" name="date_from" value="{{ f_from }}" class="form-control-custom" title="Дата с"></div>
+<div class="col-md-2 d-flex gap-2"><input type="date" name="date_to" value="{{ f_to }}" class="form-control-custom" title="Дата по">{% if filtered %}<a href="{{ url_for('main.index') }}" class="btn btn-sm btn-secondary-custom text-decoration-none">Сбросить</a>{% endif %}</div>
+</form>
+<div class="table-scroll">
+<table class="table-fixed table-custom" id="opsTable"><thead><tr><th style="width:48px">№</th><th style="width:100px">Тип</th><th>Кто выдал / Кто принял</th><th>Кому выдано / От кого принято</th><th>Проект</th><th style="width:150px">Дата</th><th class="col-actions text-end" style="width:96px">Действия</th></tr></thead>
+<tbody>{% for op in recent_ops %}<tr data-search="{{ (op.issuer.full_name if op.issuer else '') ~ ' ' ~ (op.party_name or '') ~ ' ' ~ (op.project_names|join(' ')) ~ ' ' ~ (op.comment or '')|lower }}">
+<td class="row-num"><strong>{{ loop.index }}</strong></td><td>{% if op.op_type=='issue' %}<span class="badge-custom badge-issued">Выдача</span>{% else %}<span class="badge-custom badge-stock">Прием</span>{% endif %}</td>
+<td>{{ op.issuer.full_name if op.issuer else '—' }}</td><td>{{ op.party_name or '—' }}</td><td>{{ op.project_names|join(', ') or '—' }}</td>
+<td class="text-secondary small">{{ op.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+<td class="col-actions text-end icon-actions"><a href="{{ url_for('operations.detail',op_id=op.id) }}" class="icon-btn" title="Просмотр">{{ icons.eye() }}</a>
+<form method="post" action="{{ url_for('operations.delete_operation',op_id=op.id) }}" onsubmit="return confirm('Удалить эту операцию? Действие нельзя отменить.');"><button type="submit" class="icon-btn icon-danger" title="Удалить">{{ icons.trash() }}</button></form></td>
+</tr>{% else %}<tr><td colspan="7" class="text-center py-4 text-secondary">Операций пока не проводилось</td></tr>{% endfor %}</tbody></table>
+</div></div>
+{% endblock %}
+{% block scripts %}<script>
+(function(){
+  const form=document.getElementById('opFilterForm');
+  form.querySelectorAll('select,input[type="date"]').forEach(el=>el.addEventListener('change',()=>form.submit()));
+  let t; const qInput=form.querySelector('input[name="q"]');
+  const rows=[...document.querySelectorAll('#opsTable tbody tr[data-search]')];
+  function localFilter(){const v=(qInput.value||'').toLowerCase().trim();rows.forEach(r=>r.style.display=(!v||r.dataset.search.includes(v))?'':'none');window.trackerRenumber(document.getElementById('opsTable'));}
+  qInput.addEventListener('input',()=>{localFilter();clearTimeout(t);t=setTimeout(()=>form.submit(),600);});
+  localFilter();
+})();
+</script>{% endblock %}

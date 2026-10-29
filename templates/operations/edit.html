@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% block title %}Редактирование операции — Трекер{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card-custom">
+            <h4 class="fw-bold mb-3">Редактирование операции №{{ op.id }}</h4>
+            <form method="POST">
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold text-secondary">Тип операции</label>
+                    <select name="op_type" class="form-select-custom" required>
+                        <option value="issue" {% if op.op_type == 'issue' %}selected{% endif %}>Выдача сотруднику</option>
+                        <option value="receive" {% if op.op_type == 'receive' %}selected{% endif %}>Приемка на склад</option>
+                    </select>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold text-secondary">Ответственный (Кто выдал / Кто принял)</label>
+                        <input type="text" name="issuer_name" class="form-control-custom" list="employee_list" required value="{{ op.issuer.full_name if op.issuer else '' }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold text-secondary">Сотрудник (Кому выдано / От кого принято)</label>
+                        <input type="text" name="employee_name" class="form-control-custom" value="{{ op.party_name or '' }}">
+                    </div>
+                    <datalist id="employee_list">
+                        {% for emp in employees %}
+                        <option value="{{ emp.full_name }}">
+                        {% endfor %}
+                    </datalist>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold text-secondary">Выберите оборудование:</label>
+                    <input type="text" id="eqSearchInput" class="form-control-custom mb-2" placeholder="Поиск по названию или S/N...">
+                    
+                    <div class="eq-select-list">
+                        {% for eq in equipments %}
+                        <label class="eq-item-row">
+                            <input type="checkbox" name="equipment_ids" value="{{ eq.id }}" {% if eq.id in selected_ids %}checked{% endif %}>
+                            <div>
+                                <strong>{{ eq.name }}</strong>
+                                <span class="text-secondary small ms-2">S/N: {{ eq.serial_number or 'б/н' }} ({{ eq.status }})</span>
+                            </div>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label small fw-semibold text-secondary">Комментарий / Основание</label>
+                    <textarea name="comment" class="form-control-custom" rows="2">{{ op.comment or '' }}</textarea>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn-primary-custom flex-fill justify-content-center">Сохранить изменения</button>
+                    <a href="{{ url_for('main.index') }}" class="btn btn-secondary-custom text-decoration-none">Отмена</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
