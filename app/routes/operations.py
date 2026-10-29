@@ -207,7 +207,9 @@ def edit_operation(op_id):
 
         try:
             ensure_other_employee(recipient)
-            OperationItem.query.filter_by(operation_id=op.id).delete(synchronize_session=False)
+            # Use the ORM relationship so delete-orphan and the in-memory collection stay in sync.
+            op.items.clear()
+            db.session.flush()
             op.op_type = new_type
             op.employee_id = None
             op.recipient_name = recipient
@@ -253,7 +255,7 @@ def delete_operation(op_id):
                 flash('Нельзя удалить первую операцию приёма: исходный статус оборудования неизвестен, поэтому его нельзя восстановить безопасно.', 'danger')
                 return redirect(url_for('main.index'))
     try:
-        OperationItem.query.filter_by(operation_id=op.id).delete(synchronize_session=False)
+        # Operation.items has delete-orphan cascade; let SQLAlchemy delete the children once.
         db.session.delete(op)
         db.session.flush()
         for eq_id in eq_ids:
