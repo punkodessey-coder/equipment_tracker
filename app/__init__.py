@@ -78,7 +78,8 @@ def _load_or_create_secret_key():
     os.makedirs(instance_dir, exist_ok=True)
     key_path = os.path.join(instance_dir, 'secret_key.txt')
     if os.path.exists(key_path):
-        key = open(key_path, encoding='utf-8').read().strip()
+        with open(key_path, encoding='utf-8') as f:
+            key = f.read().strip()
         if key:
             return key
     key = secrets.token_hex(32)
