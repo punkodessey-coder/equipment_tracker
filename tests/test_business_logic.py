@@ -1,6 +1,8 @@
 import os
 import tempfile
 import unittest
+
+from sqlalchemy import inspect
 from datetime import datetime, timedelta
 
 from app import create_app, db
@@ -127,7 +129,7 @@ class BusinessLogicTests(unittest.TestCase):
         result = self.app.test_cli_runner().invoke(args=["upgrade-schema"])
         self.assertEqual(result.exit_code, 0, msg=result.output)
         self.assertIn("Схема базы данных обновлена.", result.output)
-        self.assertTrue(db.inspect(db.engine).has_table("equipments"))
+        self.assertTrue(inspect(db.engine).has_table("equipments"))
         self.assertTrue(db.inspect(db.engine).has_table("operation_items"))
 
     def test_deleting_latest_issue_recalculates_equipment_status(self):
