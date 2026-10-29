@@ -135,5 +135,10 @@ def create_app():
     app.register_blueprint(directory_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(data_bp)
-    _ensure_schema(app)
+    @app.cli.command('upgrade-schema')
+    def upgrade_schema_command():
+        """Apply the legacy SQLite schema updates and data backfills."""
+        _ensure_schema(app)
+        print('Схема базы данных обновлена.')
+
     return app

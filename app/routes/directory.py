@@ -116,12 +116,24 @@ def delete_kit(proj_id,kit_id):
 @directory_bp.route('/projects/<int:proj_id>/archive',methods=['POST'])
 @login_required
 def archive_project(proj_id):
-    proj=owned_project(proj_id); proj.archived=True
-    for eq in proj.equipments:
-        if eq.status!='Архивное':
-            eq.status_before_archive=eq.status
-            eq.status='Архивное'
-    db.session.commit(); flash('Проект перенесён в архив.','success'); return redirect(url_for('directory.projects'))
+    proj=owned_project(proj_id)
+    issued = [eq for eq in proj.equipments if (eq.status or '').startswith('Выдано (')]
+    if issued:
+        flash('Нельзя архивировать проект: сначала примите обратно выданное оборудование. Это сохранит корректный статус и историю перемещений.', 'danger')
+        return redirect(url_for('directory.project_detail', proj_id=proj.id))
+    try:
+        proj.archived=True
+        for eq in proj.equipments:
+            if eq.status!='Архивное':
+                eq.status_before_archive=eq.status
+                eq.status='Архивное'
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        flash('Не удалось архивировать проект. Изменения отменены.', 'danger')
+        return redirect(url_for('directory.project_detail', proj_id=proj.id))
+    flash('Проект перенесён в архив.','success')
+    return redirect(url_for('directory.projects'))
 
 @directory_bp.route('/projects/<int:proj_id>/restore',methods=['POST'])
 @login_required

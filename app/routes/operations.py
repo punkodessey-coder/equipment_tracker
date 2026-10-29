@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, current_app
 from flask_login import login_required, current_user
 from app.extensions import db
 from app.models import Equipment, Employee, Operation, OperationItem, Project, Kit
@@ -51,89 +51,215 @@ def operation_form(op_type='issue', op=None):
     issued_names=sorted(set(issued_to.values()),key=str.casefold)
     return render_template('operations/new.html',equipments=equipments,employees=employees,projects=projects,kits=kits,selected_ids=selected_ids,issued_to=issued_to,issued_names=issued_names,other_employees=other_employees,op_type=op.op_type if op else op_type,op=op)
 
+def _latest_operation_for(equipment_id, exclude_operation_id=None):
+    query = (Operation.query.join(OperationItem, OperationItem.operation_id == Operation.id)
+             .filter(Operation.user_id == current_user.id, OperationItem.equipment_id == equipment_id))
+    if exclude_operation_id is not None:
+        query = query.filter(Operation.id != exclude_operation_id)
+    return query.order_by(Operation.created_at.desc(), Operation.id.desc()).first()
+
+
+def _status_after_operation(operation):
+    if not operation:
+        return 'На складе'
+    if operation.op_type == 'issue':
+        return f'Выдано ({operation.party_name or "Не указано"})'
+    return 'На складе'
+
+
+def _has_later_operation(operation, equipment_ids):
+    if not equipment_ids:
+        return False
+    items = OperationItem.query.filter(OperationItem.equipment_id.in_(equipment_ids)).all()
+    for item in items:
+        other = Operation.query.filter_by(id=item.operation_id, user_id=current_user.id).first()
+        if other and other.id != operation.id and (other.created_at, other.id) > (operation.created_at, operation.id):
+            return True
+    return False
+
+
 @operations_bp.route('/new', methods=['GET','POST'])
 @login_required
 def new_operation():
     op_type=request.args.get('type','issue')
     if request.method=='POST':
         op_type=request.form.get('op_type','issue')
-        employee_name=request.form.get('employee_name','').strip()
-        issuer_name=request.form.get('issuer_name','').strip()
-        equipment_ids=request.form.getlist('equipment_ids')
-        comment=request.form.get('comment','').strip() or None
-        if not equipment_ids: flash('Выберите хотя бы одну позицию из списка оборудования.','warning'); return redirect(url_for('operations.new_operation',type=op_type))
+        if op_type not in {'issue', 'receive'}:
+            flash('Недопустимый тип операции.', 'danger')
+            return redirect(url_for('operations.new_operation'))
+        employee_name=(request.form.get('employee_name') or '').strip()
+        issuer_name=(request.form.get('issuer_name') or '').strip()
+        raw_ids=request.form.getlist('equipment_ids')
+        equipment_ids=list(dict.fromkeys(raw_ids))
+        comment=(request.form.get('comment') or '').strip() or None
+        if not equipment_ids:
+            flash('Выберите хотя бы одну позицию из списка оборудования.','warning')
+            return redirect(url_for('operations.new_operation',type=op_type))
+        if len(equipment_ids) != len(raw_ids):
+            flash('В списке оборудования есть повторяющиеся позиции. Операция не сохранена.', 'danger')
+            return redirect(url_for('operations.new_operation',type=op_type))
         issuer=find_employee(issuer_name)
         if not issuer:
-            flash('Укажите, кто выдал, выбрав сотрудника из списка (страница «Сотрудники»).' if op_type=='issue' else 'Укажите, кто принял, выбрав сотрудника из списка (страница «Сотрудники»).','danger'); return redirect(url_for('operations.new_operation',type=op_type))
+            flash('Укажите сотрудника из списка «Сотрудники», который оформляет операцию.', 'danger')
+            return redirect(url_for('operations.new_operation',type=op_type))
         if not employee_name:
-            flash('Укажите, кому выдано оборудование.' if op_type=='issue' else 'Укажите, от кого принято оборудование.','danger'); return redirect(url_for('operations.new_operation',type=op_type))
-        ensure_other_employee(employee_name)
-        operation=Operation(user_id=current_user.id,seq_number=next_seq(),op_type=op_type,employee_id=None,recipient_name=employee_name,issuer_employee_id=issuer.id,comment=comment)
-        db.session.add(operation); db.session.flush()
-        for eq_id in equipment_ids:
-            eq=Equipment.query.filter_by(id=eq_id,user_id=current_user.id).first()
-            if not eq: continue
-            if op_type=='issue' and not eq.status.startswith('На складе'): continue
-            if op_type=='receive' and not eq.status.startswith('Выдано'): continue
-            db.session.add(OperationItem(operation_id=operation.id,equipment_id=eq.id))
-            eq.status=f'Выдано ({employee_name})' if op_type=='issue' else 'На складе'
-            if op_type=='receive': eq.received_from=employee_name
-        db.session.commit(); flash('Выдача успешно сохранена.' if op_type=='issue' else 'Прием успешно сохранен.','success')
+            flash('Укажите вторую сторону операции.', 'danger')
+            return redirect(url_for('operations.new_operation',type=op_type))
+        equipments = Equipment.query.filter(
+            Equipment.user_id == current_user.id, Equipment.id.in_(equipment_ids)
+        ).all()
+        by_id = {str(eq.id): eq for eq in equipments}
+        if len(by_id) != len(equipment_ids):
+            flash('Одна или несколько позиций не найдены или недоступны. Операция не сохранена.', 'danger')
+            return redirect(url_for('operations.new_operation',type=op_type))
+        for eq in equipments:
+            if eq.project and eq.project.archived:
+                flash(f'Оборудование «{eq.name}» находится в архивном проекте.', 'danger')
+                return redirect(url_for('operations.new_operation',type=op_type))
+            allowed = eq.status.startswith('На складе') if op_type == 'issue' else eq.status.startswith('Выдано (')
+            if not allowed:
+                flash(f'Нельзя выполнить операцию для «{eq.name}»: текущий статус «{eq.status}». Ничего не сохранено.', 'danger')
+                return redirect(url_for('operations.new_operation',type=op_type))
+        try:
+            ensure_other_employee(employee_name)
+            operation=Operation(user_id=current_user.id,seq_number=next_seq(),op_type=op_type,
+                employee_id=None,recipient_name=employee_name,issuer_employee_id=issuer.id,comment=comment)
+            db.session.add(operation)
+            db.session.flush()
+            for eq in equipments:
+                db.session.add(OperationItem(operation_id=operation.id,equipment_id=eq.id))
+                eq.status=f'Выдано ({employee_name})' if op_type=='issue' else 'На складе'
+                if op_type=='receive':
+                    eq.received_from=employee_name
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            current_app.logger.exception('Failed to create equipment operation')
+            flash('Не удалось сохранить операцию. Изменения отменены.', 'danger')
+            return redirect(url_for('operations.new_operation',type=op_type))
+        flash('Выдача успешно сохранена.' if op_type=='issue' else 'Приём успешно сохранён.','success')
         return redirect(url_for('main.index'))
+    if op_type not in {'issue', 'receive'}:
+        op_type = 'issue'
     return operation_form(op_type)
+
 
 @operations_bp.route('/edit/<int:op_id>', methods=['GET', 'POST'])
 @login_required
 def edit_operation(op_id):
     op = Operation.query.filter_by(id=op_id, user_id=current_user.id).first_or_404()
     if request.method == 'POST':
-        op.op_type = request.form.get('op_type', op.op_type)
+        new_type = (request.form.get('op_type') or '').strip()
         recipient = (request.form.get('employee_name') or '').strip()
         issuer = find_employee(request.form.get('issuer_name'))
-        equipment_ids = request.form.getlist('equipment_ids')
+        raw_ids = request.form.getlist('equipment_ids')
+        equipment_ids = list(dict.fromkeys(raw_ids))
+        if new_type not in {'issue', 'receive'}:
+            flash('Недопустимый тип операции.', 'danger')
+            return redirect(url_for('operations.edit_operation', op_id=op.id))
         if not issuer or not recipient:
-            flash('Укажите сотрудника из списка «Сотрудники» (кто выдал / кто принял) и вторую сторону операции.', 'danger')
+            flash('Укажите сотрудника из списка «Сотрудники» и вторую сторону операции.', 'danger')
             return redirect(url_for('operations.edit_operation', op_id=op.id))
         if not equipment_ids:
             flash('Выберите хотя бы одну позицию из списка оборудования.', 'warning')
             return redirect(url_for('operations.edit_operation', op_id=op.id))
-        ensure_other_employee(recipient)
-        op.employee_id = None
-        op.recipient_name = recipient
-        op.issuer_employee_id = issuer.id
-        op.comment = request.form.get('comment', '').strip() or None
-        OperationItem.query.filter_by(operation_id=op.id).delete()
-        for eq_id in equipment_ids:
-            eq = Equipment.query.filter_by(id=eq_id, user_id=current_user.id).first()
-            if eq:
-                db.session.add(OperationItem(operation_id=op.id, equipment_id=eq.id))
-                eq.status = f'Выдано ({recipient})' if op.op_type == 'issue' else 'На складе'
-        db.session.commit()
+        if len(equipment_ids) != len(raw_ids):
+            flash('В списке оборудования есть повторяющиеся позиции. Изменения не сохранены.', 'danger')
+            return redirect(url_for('operations.edit_operation', op_id=op.id))
+
+        old_ids = {item.equipment_id for item in op.items}
+        equipments = Equipment.query.filter(
+            Equipment.user_id == current_user.id, Equipment.id.in_(equipment_ids)
+        ).all()
+        by_id = {str(eq.id): eq for eq in equipments}
+        if len(by_id) != len(equipment_ids):
+            flash('Одна или несколько позиций не найдены или недоступны. Изменения не сохранены.', 'danger')
+            return redirect(url_for('operations.edit_operation', op_id=op.id))
+        affected_ids = old_ids | {eq.id for eq in equipments}
+        if _has_later_operation(op, affected_ids):
+            flash('Нельзя редактировать историческую операцию: по одному из этих объектов уже есть более поздняя операция. Сначала исправьте последующие операции.', 'danger')
+            return redirect(url_for('operations.edit_operation', op_id=op.id))
+
+        prior_status = {}
+        for eq_id in old_ids:
+            previous = _latest_operation_for(eq_id, exclude_operation_id=op.id)
+            if previous and (previous.created_at, previous.id) < (op.created_at, op.id):
+                prior_status[eq_id] = _status_after_operation(previous)
+            elif op.op_type == 'issue':
+                prior_status[eq_id] = 'На складе'
+            elif new_type == op.op_type and old_ids == {int(value) for value in equipment_ids}:
+                # Metadata-only edits do not require reconstructing an unknown pre-history status.
+                prior_status[eq_id] = 'На складе'
+            else:
+                flash('Нельзя безопасно изменить состав или тип первой операции приёма: предыдущий статус этой позиции неизвестен.', 'danger')
+                return redirect(url_for('operations.edit_operation', op_id=op.id))
+
+        for eq in equipments:
+            status = prior_status.get(eq.id, eq.status)
+            if eq.project and eq.project.archived:
+                flash(f'Оборудование «{eq.name}» находится в архивном проекте. Изменения не сохранены.', 'danger')
+                return redirect(url_for('operations.edit_operation', op_id=op.id))
+            metadata_only = new_type == op.op_type and old_ids == {int(value) for value in equipment_ids}
+            allowed = metadata_only or (status.startswith('На складе') if new_type == 'issue' else status.startswith('Выдано ('))
+            if not allowed:
+                flash(f'Нельзя изменить операцию для «{eq.name}»: перед этой операцией статус был «{status}». Изменения не сохранены.', 'danger')
+                return redirect(url_for('operations.edit_operation', op_id=op.id))
+
+        try:
+            ensure_other_employee(recipient)
+            OperationItem.query.filter_by(operation_id=op.id).delete(synchronize_session=False)
+            op.op_type = new_type
+            op.employee_id = None
+            op.recipient_name = recipient
+            op.issuer_employee_id = issuer.id
+            op.comment = (request.form.get('comment') or '').strip() or None
+            for eq in equipments:
+                db.session.add(OperationItem(operation_id=op.id,equipment_id=eq.id))
+            db.session.flush()
+            for eq_id in affected_ids:
+                eq = Equipment.query.filter_by(id=eq_id, user_id=current_user.id).first()
+                if not eq:
+                    continue
+                latest = _latest_operation_for(eq_id)
+                if latest:
+                    eq.status = _status_after_operation(latest)
+                elif eq_id in old_ids:
+                    eq.status = prior_status[eq_id]
+                else:
+                    eq.status = 'На складе'
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            current_app.logger.exception('Failed to edit equipment operation')
+            flash('Не удалось обновить операцию. Все изменения отменены.', 'danger')
+            return redirect(url_for('operations.edit_operation', op_id=op.id))
         flash('Операция успешно обновлена!', 'success')
         return redirect(url_for('operations.detail', op_id=op.id))
     return operation_form(op.op_type, op)
+
 
 @operations_bp.route('/delete/<int:op_id>', methods=['POST'])
 @login_required
 def delete_operation(op_id):
     op = Operation.query.filter_by(id=op_id, user_id=current_user.id).first_or_404()
-    eq_ids = [i.equipment_id for i in OperationItem.query.filter_by(operation_id=op.id).all()]
-    latest_for = {}
-    for eq_id in eq_ids:
-        last = (Operation.query.join(OperationItem, OperationItem.operation_id == Operation.id)
-                .filter(OperationItem.equipment_id == eq_id).order_by(Operation.created_at.desc(), Operation.id.desc()).first())
-        latest_for[eq_id] = last.id == op.id
-    OperationItem.query.filter_by(operation_id=op.id).delete()
-    db.session.delete(op)
-    db.session.flush()
-    for eq_id, was_latest in latest_for.items():
-        if not was_latest: continue
-        eq = Equipment.query.filter_by(id=eq_id, user_id=current_user.id).first()
-        if not eq: continue
-        prev = (Operation.query.join(OperationItem, OperationItem.operation_id == Operation.id)
-                .filter(OperationItem.equipment_id == eq_id).order_by(Operation.created_at.desc(), Operation.id.desc()).first())
-        eq.status = f'Выдано ({prev.party_name})' if prev and prev.op_type == 'issue' else 'На складе'
-    db.session.commit()
+    eq_ids = {item.equipment_id for item in op.items}
+    if _has_later_operation(op, eq_ids):
+        flash('Нельзя удалить историческую операцию: по одному из этих объектов уже есть более поздняя операция. Сначала исправьте последующие операции.', 'danger')
+        return redirect(url_for('main.index'))
+    try:
+        OperationItem.query.filter_by(operation_id=op.id).delete(synchronize_session=False)
+        db.session.delete(op)
+        db.session.flush()
+        for eq_id in eq_ids:
+            eq = Equipment.query.filter_by(id=eq_id, user_id=current_user.id).first()
+            if eq:
+                eq.status = _status_after_operation(_latest_operation_for(eq_id))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception('Failed to delete equipment operation')
+        flash('Не удалось удалить операцию. Изменения отменены.', 'danger')
+        return redirect(url_for('main.index'))
     flash('Операция удалена.', 'success')
     return redirect(url_for('main.index'))
 
