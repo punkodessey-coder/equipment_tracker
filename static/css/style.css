@@ -354,3 +354,28 @@ body.user-menu-open{overflow-y:hidden}
   .user-menu-wrap:hover .user-menu{display:none}
   .user-menu-wrap.open .user-menu{display:block}
 }
+
+
+/* Мобильная компоновка главной и реестра оборудования. */
+.home-page-header{gap:1rem}
+.home-page-header>div:first-child{min-width:0}
+.home-page-header>div:last-child{flex-shrink:0}
+.equipment-list-header{gap:1rem}
+.equipment-list-header>div{min-width:0}
+.equipment-list-header .btn-primary-custom{flex-shrink:0;white-space:nowrap}
+@media(max-width:600px){
+  .home-page-header{align-items:flex-start!important;flex-direction:column;gap:.85rem!important;margin-bottom:1rem!important}
+  .home-page-header>div:last-child{width:100%}
+  .home-page-header>div:last-child>a{flex:1;justify-content:center;text-align:center}
+  .equipment-list-header{align-items:flex-start!important;flex-direction:column;gap:.75rem!important;padding:1rem!important}
+  .equipment-list-header>div{width:100%}
+  .equipment-list-header h3{font-size:1.35rem}
+  .equipment-list-header .btn-primary-custom{width:100%;justify-content:center;white-space:normal;text-align:center;min-height:44px}
+  .table-scroll{position:relative;border-bottom:1px solid var(--border-subtle)}
+  .table-scroll::after{content:"Прокрутите таблицу по горизонтали →";display:block;position:sticky;left:0;width:max-content;max-width:100%;padding:.45rem .75rem;font-size:.75rem;color:var(--text-secondary);background:var(--surface);border-top:1px solid var(--border-subtle)}
+  #opsTable{min-width:1000px}
+  #equipmentTable{min-width:860px}
+  #opsTable th,#opsTable td,#equipmentTable th,#equipmentTable td{overflow-wrap:normal;word-break:normal}
+  #equipmentTable th:nth-child(3),#equipmentTable td:nth-child(3),
+  #equipmentTable th:nth-child(4),#equipmentTable td:nth-child(4){min-width:115px}
+}
