@@ -246,6 +246,12 @@ def delete_operation(op_id):
     if _has_later_operation(op, eq_ids):
         flash('Нельзя удалить историческую операцию: по одному из этих объектов уже есть более поздняя операция. Сначала исправьте последующие операции.', 'danger')
         return redirect(url_for('main.index'))
+    if op.op_type == 'receive':
+        for eq_id in eq_ids:
+            previous = _latest_operation_for(eq_id, exclude_operation_id=op.id)
+            if not previous or (previous.created_at, previous.id) > (op.created_at, op.id):
+                flash('Нельзя удалить первую операцию приёма: исходный статус оборудования неизвестен, поэтому его нельзя восстановить безопасно.', 'danger')
+                return redirect(url_for('main.index'))
     try:
         OperationItem.query.filter_by(operation_id=op.id).delete(synchronize_session=False)
         db.session.delete(op)
