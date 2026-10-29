@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_from_directory, current_app
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
@@ -22,7 +22,7 @@ def save_upload(file, prefix):
     ext = os.path.splitext(file.filename)[1].lower()
     if ext not in {'.pdf', '.docx', '.jpg', '.jpeg', '.png', '.webp'}:
         return None
-    name = secure_filename(f'{prefix}_{datetime.utcnow().strftime("%Y%m%d%H%M%S%f")}{ext}')
+    name = secure_filename(f'{prefix}_{datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")}{ext}')
     file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], name))
     return name
 
@@ -67,7 +67,7 @@ def add_equipment():
         eq = Equipment(user_id=current_user.id, name=name, category=None,
                        decimal_number=decimal_number, serial_number=sn,
                        project_id=project_id, kit_id=kit_id, status='На складе',
-                       received_at=datetime.utcnow(), received_from=received_from,
+                       received_at=datetime.now(timezone.utc), received_from=received_from,
                        acceptance_report=report_name, photo_path=photo_name)
         db.session.add(eq); db.session.flush()
         for filename in photo_names:
