@@ -134,6 +134,11 @@ def detail(item_id):
 @login_required
 def delete_equipment(item_id):
     item = Equipment.query.filter_by(id=item_id, user_id=current_user.id).first_or_404()
+    # Equipment with movement history must not be deleted: doing so would erase
+    # operation items and may delete operations that also reference other items.
+    if OperationItem.query.filter_by(equipment_id=item.id).first():
+        flash('Нельзя удалить оборудование с историей перемещений. Сначала разберите связанные операции.', 'danger')
+        return redirect(url_for('equipment.detail', item_id=item.id))
     files = [p.filename for p in item.photos] + [item.photo_path, item.acceptance_report]
     op_ids = {oi.operation_id for oi in OperationItem.query.filter_by(equipment_id=item.id).all()}
     OperationItem.query.filter_by(equipment_id=item.id).delete()
