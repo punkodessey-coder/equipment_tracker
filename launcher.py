@@ -5,7 +5,7 @@ import tkinter as tk
 from tkinter import messagebox
 from werkzeug.serving import make_server
 
-from app import create_app, db
+from app import create_app, db, _ensure_schema
 from app.models import User
 
 
@@ -21,6 +21,7 @@ def secret_file_path():
 
 
 def initialize_database(app):
+    _ensure_schema(app)
     with app.app_context():
         db.create_all()
         admin = User.query.filter_by(username='admin').first()
