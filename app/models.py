@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from app.extensions import db
@@ -13,7 +13,7 @@ class User(UserMixin, db.Model):
     role = db.Column(db.String(20), default='user')
     can_report = db.Column(db.Boolean, default=False)
     can_data = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     equipments = db.relationship('Equipment', backref='owner', lazy='dynamic')
     projects = db.relationship('Project', backref='owner', lazy='dynamic')
     employees = db.relationship('Employee', backref='owner', lazy='dynamic')
@@ -52,7 +52,7 @@ class Project(db.Model):
     name = db.Column(db.String(120), nullable=False)
     description = db.Column(db.Text)
     archived = db.Column(db.Boolean, default=False, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     equipments = db.relationship('Equipment', backref='project', lazy=True)
     kits = db.relationship('Kit', backref='project', cascade='all, delete-orphan', lazy=True)
 
@@ -74,13 +74,13 @@ class Equipment(db.Model):
     status = db.Column(db.String(80), default='На складе')
     project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=True)
     kit_id = db.Column(db.Integer, db.ForeignKey('kits.id'), nullable=True)
-    received_at = db.Column(db.DateTime, default=datetime.utcnow)
+    received_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     received_from = db.Column(db.String(255))
     acceptance_report = db.Column(db.String(500))
     photo_path = db.Column(db.String(500))
     status_before_archive = db.Column(db.String(80))
     photos = db.relationship('EquipmentPhoto', backref='equipment', cascade='all, delete-orphan', lazy=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     operation_items = db.relationship('OperationItem', backref='equipment', lazy=True)
 
 class Operation(db.Model):
@@ -112,7 +112,7 @@ class Operation(db.Model):
                     return name
                 return f'{name} ({emp.department})' if emp.department else f'{name} (Отдел не указан)'
         return f'{name} (Отдел не указан)'
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     comment = db.Column(db.Text)
     items = db.relationship('OperationItem', backref='operation', cascade="all, delete-orphan")
 
@@ -128,4 +128,4 @@ class EquipmentPhoto(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     equipment_id = db.Column(db.Integer, db.ForeignKey('equipments.id'), nullable=False)
     filename = db.Column(db.String(500), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
