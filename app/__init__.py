@@ -86,7 +86,7 @@ def _load_or_create_secret_key():
         f.write(key)
     return key
 
-def create_app():
+def create_app(test_config=None):
     app = Flask(__name__,
                 template_folder=os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'templates')),
                 static_folder=os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'static')))
@@ -95,6 +95,8 @@ def create_app():
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads')
     app.config['MAX_CONTENT_LENGTH'] = 25 * 1024 * 1024
+    if test_config:
+        app.config.update(test_config)
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
     db.init_app(app)
