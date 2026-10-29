@@ -123,6 +123,13 @@ class BusinessLogicTests(unittest.TestCase):
         self.assertEqual(first.op_type, "issue")
         self.assertEqual(Operation.query.count(), 2)
 
+    def test_upgrade_schema_cli_command_runs(self):
+        result = self.app.test_cli_runner().invoke(args=["upgrade-schema"])
+        self.assertEqual(result.exit_code, 0, msg=result.output)
+        self.assertIn("Схема базы данных обновлена.", result.output)
+        self.assertTrue(db.inspect(db.engine).has_table("equipments"))
+        self.assertTrue(db.inspect(db.engine).has_table("operation_items"))
+
     def test_deleting_latest_issue_recalculates_equipment_status(self):
         issue = self.add_operation("issue", "Петров Пётр", datetime(2026, 1, 1))
         self.assertEqual(self.equipment.status, "Выдано (Петров Пётр)")
