@@ -3,7 +3,7 @@
 {% block title %}Оборудование — Трекер{% endblock %}
 {% block content %}
 <div class="card-custom p-0 overflow-hidden">
-<div class="p-3 px-4 border-bottom d-flex justify-content-between align-items-center"><div><h3 class="fw-bold m-0">Оборудование</h3><p class="text-secondary small m-0">Реестр всей техники</p></div><a href="{{ url_for('equipment.add_equipment') }}" class="btn-primary-custom text-decoration-none">Добавить позицию</a></div>
+<div class="equipment-list-header p-3 px-4 border-bottom d-flex justify-content-between align-items-center"><div><h3 class="fw-bold m-0">Оборудование</h3><p class="text-secondary small m-0">Реестр всей техники</p></div><a href="{{ url_for('equipment.add_equipment') }}" class="btn-primary-custom text-decoration-none">Добавить позицию</a></div>
 <div class="p-3 border-bottom row g-2 filter-bar"><div class="col-md-7"><input id="equipmentSearch" class="form-control-custom" placeholder="Поиск по мере ввода: название, децимальный или серийный номер"></div><div class="col-md-3"><select id="statusFilter" class="form-select-custom"><option value="">Все</option><option value="На складе">На складе</option><option value="Выдано">Выдано</option><option value="Архивное">Архивное</option></select></div></div>
 <div class="table-scroll">
 <table class="table-fixed table-custom" id="equipmentTable"><thead><tr><th style="width:48px">№</th><th data-sort="1" style="width:22%">Наименование</th><th style="width:14%">Децимальный номер</th><th style="width:14%">Серийный номер</th><th style="width:20%">Проект / комплект</th><th style="width:120px">Статус</th><th class="col-actions" style="width:88px"></th></tr></thead>
