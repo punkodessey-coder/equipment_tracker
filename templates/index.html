@@ -2,7 +2,7 @@
 {% import '_icons.html' as icons %}
 {% block title %}Главная — Трекер{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="home-page-header d-flex justify-content-between align-items-center mb-4">
 <div><h3 class="fw-bold m-0">Главная</h3><p class="text-secondary small m-0">Быстрые действия и журнал перемещений</p></div>
 <div class="d-flex gap-2">
 <a href="{{ url_for('operations.new_operation', type='issue') }}" class="btn-primary-custom text-decoration-none">Выдача</a>
